@@ -14,16 +14,14 @@ venv/
 __pycache__/
 *.pyc
 .env
-uploads/
-outputs/
 
 # ----------------------
 # FastAPI / Backend
 # ----------------------
-uploads/
-outputs/
-data/
-models/
+uploads/*
+outputs/*
+data/*
+models/*
 
 # Logs
 *.log
