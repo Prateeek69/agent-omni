@@ -1,231 +1,311 @@
-import React, { useState } from 'react';
-import { Copy, CheckCircle, ShieldCheck, CheckSquare, List, Link as LinkIcon, AlertCircle, Briefcase, Calendar, Building2, User, Zap } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronDown,
+  Copy,
+  FileAudio2,
+  FileImage,
+  FileText,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  Type,
+  WandSparkles,
+  Zap,
+} from 'lucide-react';
+import SurfaceCard from './SurfaceCard';
+
+const inputIcons = {
+  pdf: FileText,
+  image: FileImage,
+  audio: FileAudio2,
+  text: Type,
+};
+
+const pointIcons = [Zap, Sparkles, Target, CheckCircle2, WandSparkles];
+
+function toTitleCase(value = '') {
+  return value
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function confidenceClasses(confidence = '') {
+  const normalized = confidence.toLowerCase();
+  if (normalized === 'high') return 'border-emerald-200 bg-emerald-100 text-emerald-700';
+  if (normalized === 'medium') return 'border-amber-200 bg-amber-100 text-amber-700';
+  return 'border-rose-200 bg-rose-100 text-rose-700';
+}
+
+function summarizeWords(value = '') {
+  return (value.match(/\b\w+\b/g) || []).length;
+}
+
+function formatKeyPoint(point, index) {
+  const cleaned = point.replace(/\s+/g, ' ').trim();
+  const splitByColon = cleaned.split(/:\s+(.+)/).filter(Boolean);
+
+  if (splitByColon.length >= 2) {
+    return {
+      title: splitByColon[0],
+      description: splitByColon[1],
+      icon: pointIcons[index % pointIcons.length],
+    };
+  }
+
+  const words = cleaned.split(' ');
+  return {
+    title: words.slice(0, Math.min(6, words.length)).join(' '),
+    description: words.slice(Math.min(6, words.length)).join(' ') || cleaned,
+    icon: pointIcons[index % pointIcons.length],
+  };
+}
+
+function describeAction(action) {
+  const lower = action.toLowerCase();
+
+  if (lower.includes('ats')) {
+    return 'Estimate how well the document will perform in automated screening systems.';
+  }
+  if (lower.includes('cover letter')) {
+    return 'Turn this analysis into a tailored companion document for applications.';
+  }
+  if (lower.includes('wording')) {
+    return 'Refine tone, clarity, and impact so the language sounds stronger and more polished.';
+  }
+  if (lower.includes('resume bullets')) {
+    return 'Convert the strongest evidence into concise achievement bullets for future reuse.';
+  }
+  if (lower.includes('highlight academic achievements')) {
+    return 'Surface the best scores, ranks, and outcomes so they are easier to present elsewhere.';
+  }
+  if (lower.includes('marks or scores')) {
+    return 'Organize scores into a quick, interview-friendly snapshot.';
+  }
+  if (lower.includes('deadlines')) {
+    return 'Pull out dates, timelines, and scheduling pressure points from the document.';
+  }
+  if (lower.includes('action items')) {
+    return 'Convert the content into a short follow-up checklist.';
+  }
+
+  return 'Use this next step to deepen or repurpose the current analysis.';
+}
 
 export default function ResultView({ data, onReset }) {
   const [copied, setCopied] = useState(false);
+  const [showRawText, setShowRawText] = useState(false);
 
-  const { 
-    final_answer, 
-    summary, 
-    key_points, 
-    actions, 
-    sources, 
-    confidence, 
-    issues,
-    document_type,
-    important_entities
+  const {
+    summary = '',
+    key_points: keyPoints = [],
+    actions = [],
+    confidence = 'low',
+    issues = [],
+    raw_extracted_text: rawExtractedText = '',
+    primary_filename: primaryFilename = 'Pasted Text',
+    primary_input_type: primaryInputType = 'text',
+    processing_time_seconds: processingTimeSeconds = 0,
+    word_count: backendWordCount = 0,
+    document_type: documentType = 'general pdf',
   } = data?.final_output || {};
 
-  const handleCopy = () => {
-    const textToCopy = `FINAL ANSWER:\n${final_answer || ''}\n\nSUMMARY:\n${summary || ''}`;
-    navigator.clipboard.writeText(textToCopy);
+  const InputIcon = inputIcons[primaryInputType] || FileText;
+  const cleanedSummary = summary.trim();
+  const derivedWordCount = backendWordCount || summarizeWords(rawExtractedText || cleanedSummary);
+  const noisySummary = useMemo(() => {
+    if (!cleanedSummary) return true;
+    const alphaChars = (cleanedSummary.match(/[A-Za-z]/g) || []).length;
+    return /scanned with|print|exit/i.test(cleanedSummary) || alphaChars / Math.max(cleanedSummary.length, 1) < 0.55;
+  }, [cleanedSummary]);
+
+  const shouldUseFallbackSummary = !cleanedSummary || (confidence === 'low' && noisySummary);
+  const displaySummary = shouldUseFallbackSummary
+    ? 'Structured summary unavailable. Displaying extracted key information.'
+    : cleanedSummary;
+
+  const keyPointCards = keyPoints.map((point, index) => formatKeyPoint(point, index));
+  const hasUsefulContent = displaySummary || keyPointCards.length > 0 || actions.length > 0;
+
+  const handleCopy = async () => {
+    const payload = [
+      `Summary: ${displaySummary}`,
+      keyPoints.length ? `Key Points:\n- ${keyPoints.join('\n- ')}` : '',
+      actions.length ? `Actions:\n- ${actions.join('\n- ')}` : '',
+    ].filter(Boolean).join('\n\n');
+
+    await navigator.clipboard.writeText(payload);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 1800);
   };
 
-  const getConfidenceColor = (conf = '') => {
-    const c = conf.toLowerCase();
-    if (c.includes('high')) return 'text-emerald-700 bg-emerald-100 border-emerald-200';
-    if (c.includes('low')) return 'text-red-700 bg-red-100 border-red-200';
-    return 'text-amber-700 bg-amber-100 border-amber-200';
-  };
-
-  const formatSource = (src) => {
-    try {
-      const parts = src.split(/[/\\]/);
-      return parts[parts.length - 1];
-    } catch (e) {
-      return src;
-    }
-  };
-
-  if (!final_answer && !summary && (!key_points || key_points.length === 0)) {
+  if (!hasUsefulContent) {
     return (
-      <div className="w-full max-w-4xl mx-auto p-12 bg-white rounded-3xl shadow-sm border border-slate-200 text-center">
-        <div className="mx-auto w-16 h-16 bg-slate-100 flex items-center justify-center rounded-full mb-4">
-          <AlertCircle className="w-8 h-8 text-slate-400" />
+      <SurfaceCard title="No Content Extracted" subtitle="We could not recover enough reliable text from the current input.">
+        <div className="space-y-5 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+            <AlertCircle className="h-8 w-8" />
+          </div>
+          <p className="text-sm text-slate-500">Try a clearer file, a higher-resolution image, or add more context before rerunning the analysis.</p>
+          <button
+            type="button"
+            onClick={onReset}
+            className="inline-flex rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            Analyze Another File
+          </button>
         </div>
-        <h3 className="text-xl font-bold text-slate-800 mb-2">No Content Extracted</h3>
-        <p className="text-slate-500 mb-6">We couldn't extract any meaningful insights from the provided document.</p>
-        <button onClick={onReset} className="px-6 py-2.5 bg-slate-900 text-white rounded-xl font-medium hover:bg-slate-800 transition-colors">
-          Try Another File
-        </button>
-      </div>
+      </SurfaceCard>
     );
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Header section with Final Answer */}
-      <div className="bg-white rounded-3xl shadow-md shadow-slate-200/50 border border-slate-200 overflow-hidden transition-all hover:shadow-lg">
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 border-b border-blue-100 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Final Assessment</h2>
-            {document_type && (
-              <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-bold rounded-full uppercase tracking-widest shadow-sm">
-                {document_type}
-              </span>
-            )}
+    <div className="space-y-8">
+      <SurfaceCard
+        title="Analysis Summary"
+        subtitle="A cleaned, human-readable view of the most important information extracted from your input."
+        icon={Sparkles}
+        action={
+          <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] ${confidenceClasses(confidence)}`}>
+            <ShieldCheck className="h-4 w-4" />
+            {confidence || 'low'} confidence
           </div>
-          {confidence && (
-            <div className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide border shadow-sm flex items-center gap-1.5 ${getConfidenceColor(confidence)}`}>
-              <ShieldCheck className="w-4 h-4" />
-              {confidence}
+        }
+      >
+        <div className="space-y-5">
+          <div className="flex flex-col gap-3 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)]">
+                <InputIcon className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-slate-900">{primaryFilename}</p>
+                <p className="mt-1 text-xs text-slate-500">{toTitleCase(documentType)} · {toTitleCase(primaryInputType)}</p>
+              </div>
             </div>
-          )}
-        </div>
-        <div className="p-8 bg-gradient-to-b from-white to-slate-50/50">
-          <div className="prose prose-blue max-w-none text-slate-800 whitespace-pre-wrap text-[1.1rem] leading-relaxed font-medium">
-            {final_answer || "No final answer provided."}
+            <div className="flex flex-wrap gap-2 text-xs font-medium text-slate-600">
+              <span className="rounded-full bg-white px-3 py-2 shadow-sm">Processed in {Number(processingTimeSeconds || 0).toFixed(1)}s</span>
+              <span className="rounded-full bg-white px-3 py-2 shadow-sm">{derivedWordCount} words extracted</span>
+            </div>
           </div>
-          <div className="mt-8 flex justify-end">
-            <button 
+
+          <div className={`rounded-[26px] border p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] ${shouldUseFallbackSummary ? 'border-amber-200 bg-amber-50/90' : 'border-slate-200 bg-white'}`}>
+            <p className={`text-[1.05rem] leading-8 ${shouldUseFallbackSummary ? 'text-amber-900' : 'text-slate-800'}`}>
+              {displaySummary}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {issues.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {issues.slice(0, 2).map((issue) => (
+                  <span key={issue} className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-800">
+                    {issue}
+                  </span>
+                ))}
+              </div>
+            ) : <div />}
+
+            <button
+              type="button"
               onClick={handleCopy}
-              className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 font-bold transition-all shadow-sm active:scale-95"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-[0_12px_24px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:text-slate-900"
             >
-              {copied ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-              {copied ? "Copied!" : "Copy Summary & Answer"}
+              <Copy className="h-4 w-4" />
+              {copied ? 'Copied' : 'Copy Summary'}
             </button>
           </div>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Left Column */}
-        <div className="space-y-8">
-          {summary && (
-            <div className="bg-white rounded-3xl shadow-sm hover:shadow-md shadow-slate-200/50 transition-all border border-slate-200 p-8">
-              <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <List className="w-6 h-6 text-indigo-500" />
-                Summary
-              </h3>
-              <p className="text-[0.95rem] text-slate-600 leading-relaxed font-medium">
-                {summary}
-              </p>
+          {rawExtractedText ? (
+            <div className="rounded-[24px] border border-slate-200 bg-slate-50/70">
+              <button
+                type="button"
+                onClick={() => setShowRawText((previous) => !previous)}
+                className="flex w-full items-center justify-between px-5 py-4 text-left"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Raw Extracted Text</p>
+                  <p className="mt-1 text-xs text-slate-500">Inspect the cleaned extraction that powered the summary.</p>
+                </div>
+                <ChevronDown className={`h-5 w-5 text-slate-500 transition-transform ${showRawText ? 'rotate-180' : ''}`} />
+              </button>
+              {showRawText ? (
+                <div className="border-t border-slate-200 px-5 py-4">
+                  <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-2xl bg-slate-950 px-4 py-4 text-xs leading-6 text-slate-100 shadow-inner">
+                    {rawExtractedText}
+                  </pre>
+                </div>
+              ) : null}
             </div>
-          )}
+          ) : null}
+        </div>
+      </SurfaceCard>
 
-          {key_points && key_points.length > 0 && (
-            <div className="bg-white rounded-3xl shadow-sm hover:shadow-md shadow-slate-200/50 transition-all border border-slate-200 p-8">
-              <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                <CheckCircle className="w-6 h-6 text-emerald-500" />
-                Key Points
-              </h3>
-              <div className="space-y-4">
-                {key_points.map((point, index) => (
-                  <div key={index} className="flex gap-4 items-start p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:bg-slate-100/60 transition-colors">
-                    <div className="flex-shrink-0 mt-0.5">
-                      <Zap className="w-5 h-5 text-amber-500 fill-amber-100" />
+      <div className="grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
+        <SurfaceCard
+          title="Key Points"
+          subtitle="Short, scan-friendly takeaways extracted from the document."
+          icon={CheckCircle2}
+        >
+          <div className="space-y-4">
+            {keyPointCards.length > 0 ? keyPointCards.map((point, index) => {
+              const Icon = point.icon;
+              return (
+                <div
+                  key={`${point.title}-${index}`}
+                  className="group rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,_rgba(255,255,255,0.98),_rgba(248,250,252,0.95))] p-4 transition-all hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)]"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 transition group-hover:bg-amber-100">
+                      <Icon className="h-5 w-5" />
                     </div>
-                    <span className="text-[0.95rem] text-slate-700 leading-relaxed font-medium">{point}</span>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{point.title}</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-500">{point.description}</p>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+                </div>
+              );
+            }) : (
+              <p className="text-sm text-slate-500">Key points were not available for this analysis.</p>
+            )}
+          </div>
+        </SurfaceCard>
 
-        {/* Right Column */}
-        <div className="space-y-8">
-
-          {important_entities && (important_entities.dates?.length > 0 || important_entities.organizations?.length > 0 || important_entities.names?.length > 0) && (
-            <div className="bg-white rounded-3xl shadow-sm hover:shadow-md shadow-slate-200/50 transition-all border border-slate-200 p-8">
-              <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                <Briefcase className="w-6 h-6 text-purple-500" />
-                Important Info
-              </h3>
-              <div className="space-y-6">
-                {important_entities.dates?.length > 0 && (
+        <SurfaceCard
+          title="Suggested Actions"
+          subtitle="Recommended next steps based on the detected document type."
+          icon={WandSparkles}
+        >
+          <div className="space-y-4">
+            {actions.map((action) => (
+              <div
+                key={action}
+                className="group rounded-[24px] border border-slate-200 bg-white p-4 transition-all hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_16px_35px_rgba(59,130,246,0.10)]"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 group-hover:bg-blue-100">
+                    <Target className="h-5 w-5" />
+                  </div>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3 uppercase tracking-wider">
-                      <Calendar className="w-4 h-4 text-slate-400"/> Dates
-                    </h4>
-                    <ul className="text-[0.95rem] text-slate-700 bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
-                      {important_entities.dates.map((d, i) => <li key={i} className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-slate-300"/>{d}</li>)}
-                    </ul>
+                    <p className="text-sm font-semibold text-slate-900">{action}</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">{describeAction(action)}</p>
                   </div>
-                )}
-                {important_entities.organizations?.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3 uppercase tracking-wider">
-                      <Building2 className="w-4 h-4 text-slate-400"/> Organizations
-                    </h4>
-                    <ul className="text-[0.95rem] text-slate-700 bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
-                      {important_entities.organizations.map((o, i) => <li key={i} className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-slate-300"/>{o}</li>)}
-                    </ul>
-                  </div>
-                )}
-                {important_entities.names?.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-3 uppercase tracking-wider">
-                      <User className="w-4 h-4 text-slate-400"/> Names
-                    </h4>
-                    <ul className="text-[0.95rem] text-slate-700 bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
-                      {important_entities.names.map((n, i) => <li key={i} className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-slate-300"/>{n}</li>)}
-                    </ul>
-                  </div>
-                )}
+                </div>
               </div>
-            </div>
-          )}
-
-          {actions && actions.length > 0 && (
-            <div className="bg-white rounded-3xl shadow-sm hover:shadow-md shadow-slate-200/50 transition-all border border-slate-200 p-8">
-              <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                <CheckSquare className="w-6 h-6 text-blue-500" />
-                Suggested Actions
-              </h3>
-              <div className="space-y-3">
-                {actions.map((action, index) => (
-                  <label key={index} className="flex items-start gap-4 p-4 rounded-2xl border border-slate-200 hover:border-blue-300 hover:shadow-sm bg-white transition-all cursor-pointer group">
-                    <input type="checkbox" className="mt-1 w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-1 transition-colors cursor-pointer" />
-                    <span className="text-[0.95rem] text-slate-700 group-hover:text-slate-900 font-medium leading-relaxed">{action}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {sources && sources.length > 0 && (
-            <div className="bg-white rounded-3xl shadow-sm hover:shadow-md shadow-slate-200/50 transition-all border border-slate-200 p-8">
-              <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                <LinkIcon className="w-6 h-6 text-blue-500" />
-                Sources
-              </h3>
-              <div className="space-y-3">
-                {sources.map((src, index) => (
-                  <a key={index} href={`file://${src.source}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-blue-200 hover:bg-blue-50 transition-colors group text-sm overflow-hidden" title={src.source}>
-                    <span className="px-2 py-1 rounded bg-slate-200 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700 text-xs font-bold uppercase tracking-wider shrink-0">{src.type}</span>
-                    <span className="truncate text-slate-700 group-hover:text-blue-700 font-medium">{formatSource(src.source)}</span>
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {issues && issues.length > 0 && (
-            <div className="bg-red-50 rounded-3xl shadow-sm hover:shadow-md transition-all border border-red-100 p-8">
-              <h3 className="text-xl font-bold text-red-800 mb-4 flex items-center gap-2">
-                <AlertCircle className="w-6 h-6 text-red-500" />
-                Issues Detected
-              </h3>
-              <ul className="space-y-3 mt-4">
-                {issues.map((issue, index) => (
-                  <li key={index} className="flex gap-3 text-sm text-red-700 font-medium bg-white/60 p-3 rounded-xl">
-                    <span className="shrink-0 mt-0.5">•</span>
-                    <span>{issue}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        </SurfaceCard>
       </div>
 
-      <div className="flex justify-center pt-8 pb-4">
-        <button 
+      <div className="flex justify-center pb-2">
+        <button
+          type="button"
           onClick={onReset}
-          className="px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all w-full md:w-auto"
+          className="inline-flex rounded-2xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-[0_14px_26px_rgba(15,23,42,0.2)] transition hover:-translate-y-0.5 hover:bg-slate-800"
         >
           Analyze Another File
         </button>

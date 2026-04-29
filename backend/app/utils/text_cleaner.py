@@ -1,40 +1,70 @@
 import re
 
+_ALLOWED_PUNCTUATION = set(".,:/%-&()'\";?!#")
+_DISALLOWED_TOKEN_PATTERN = re.compile(r"[{}\[\]<>@#$%^*_+=|\\]")
+_NUMERIC_TOKEN_PATTERN = re.compile(r"^[0-9.,:/\-]+$")
 
-def clean_text(text: str) -> str:
+
+def _clean_token(word: str) -> str:
+    token = word.strip()
+    if not token:
+        return ""
+
+    alpha_count = sum(c.isalpha() for c in token)
+    alnum_count = sum(c.isalnum() for c in token)
+
+    if _DISALLOWED_TOKEN_PATTERN.search(token) and alpha_count > 0:
+        return ""
+
+    if len(token) > 4 and alnum_count == 0:
+        return ""
+
+    weird_count = sum(
+        not (c.isalnum() or c in _ALLOWED_PUNCTUATION)
+        for c in token
+    )
+    if (
+        len(token) > 3
+        and weird_count / max(len(token), 1) > 0.35
+        and not _NUMERIC_TOKEN_PATTERN.match(token)
+    ):
+        return ""
+
+    return token
+
+
+def clean_text(text: str, preserve_line_breaks: bool = False) -> str:
     if not text:
         return ""
 
-    # Basic normalization
-    text = re.sub(r"[^\x00-\x7F]+", " ", text)
-    text = re.sub(r"\s+", " ", text)
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    normalized = re.sub(r"[^\x00-\x7F]+", " ", normalized)
 
-    # Process word by word
-    words = text.split()
-    clean_words = []
+    segments = normalized.split("\n") if preserve_line_breaks else [normalized]
+    cleaned_segments = []
 
-    for word in words:
-        # Ignore empty
-        if not word.strip():
+    for raw_segment in segments:
+        segment = re.sub(r"\s+", " ", raw_segment).strip()
+        if not segment:
+            if preserve_line_breaks and cleaned_segments and cleaned_segments[-1] != "":
+                cleaned_segments.append("")
             continue
 
-        # Count alphabet characters and total characters
-        alpha_count = sum(c.isalpha() for c in word)
-        total_count = len(word)
+        tokens = [_clean_token(token) for token in segment.split(" ")]
+        cleaned = " ".join(token for token in tokens if token).strip(" -")
 
-        # Reject words with >30% non-alphabet characters (unless it's a number/punctuation)
-        if total_count > 0:
-            non_alpha_ratio = (total_count - alpha_count) / total_count
-            
-            # Keep common words, numbers or small punctuation
-            if total_count > 3 and non_alpha_ratio > 0.3 and not word.isnumeric() and not re.match(r"^[0-9.,\-]+$", word):
-                continue
-            
-            # Reject broken words (like "PRA(EEK") if it has weird symbols
-            if re.search(r"[(){}[\]<>@#$%^&*_=+|\\]", word) and alpha_count > 0:
-                continue
+        if not cleaned:
+            if preserve_line_breaks and cleaned_segments and cleaned_segments[-1] != "":
+                cleaned_segments.append("")
+            continue
 
-        clean_words.append(word)
+        cleaned_segments.append(cleaned)
 
-    clean_text = " ".join(clean_words).strip()
-    return clean_text
+    if preserve_line_breaks:
+        result = "\n".join(cleaned_segments)
+        result = re.sub(r"\n{3,}", "\n\n", result)
+    else:
+        result = " ".join(cleaned_segments)
+        result = re.sub(r"\s+", " ", result)
+
+    return result.strip()
