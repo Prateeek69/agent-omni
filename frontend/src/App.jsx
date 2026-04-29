@@ -149,34 +149,14 @@ function App() {
     setErrorMessage('');
     setLoadingStartedAt(null);
     setElapsedMs(0);
-  };
-
-  const handleUploadFiles = () => {
-    handleReset();
-    setMobileSidebarOpen(false);
-    window.requestAnimationFrame(() => {
-      uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+    setActivePanel('new');
   };
 
   const handleSelectHistory = (item) => {
     setResultData(item);
     setStatus('success');
     setMobileSidebarOpen(false);
-  };
-
-  const handleExportJson = () => {
-    if (!resultData) {
-      return;
-    }
-
-    const blob = new Blob([JSON.stringify(resultData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `${resultData.final_output?.primary_filename || 'agent-omni-analysis'}.json`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    setActivePanel('history');
   };
 
   const handleClearSession = () => {
@@ -201,14 +181,12 @@ function App() {
           onCloseMobile={() => setMobileSidebarOpen(false)}
           onSelectPanel={setActivePanel}
           onNewAnalysis={handleReset}
-          onUploadFiles={handleUploadFiles}
-          onExportJson={handleExportJson}
           onClearSession={handleClearSession}
           onSelectHistory={handleSelectHistory}
         />
 
         <div className="min-w-0 flex-1">
-          <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-[linear-gradient(90deg,_rgba(255,255,255,0.94),_rgba(239,246,255,0.86),_rgba(238,242,255,0.92))] backdrop-blur-xl">
+          <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
             <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
               <div className="flex items-center gap-3">
                 <button
@@ -220,57 +198,56 @@ function App() {
                 </button>
 
                 <button type="button" onClick={handleReset} className="group inline-flex items-center gap-3 text-left">
-                  <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-sky-500 text-white shadow-[0_14px_28px_rgba(37,99,235,0.32)] transition-transform group-hover:scale-105">
-                    <div className="absolute inset-[1px] rounded-[15px] border border-white/15" />
+                  <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-sky-500 text-white shadow-[0_10px_20px_rgba(37,99,235,0.25)] transition-transform group-hover:scale-105">
                     <span className="relative text-xl font-black tracking-tight">O</span>
                   </div>
-                  <div>
-                    <p className="text-2xl font-semibold tracking-tight text-slate-900">Agent-Omni</p>
-                    <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Multimodal Intelligence</p>
+                  <div className="hidden sm:block">
+                    <p className="text-xl font-bold tracking-tight text-slate-900">Agent-Omni</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">File Analysis Tool</p>
                   </div>
                 </button>
               </div>
 
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">
-                <span className="dot-pulse h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                Local-first AI
+              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-600 shadow-sm">
+                <span className="dot-pulse h-2 w-2 rounded-full bg-emerald-500" />
+                Runs Locally
               </div>
             </div>
           </header>
 
-          <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
             {status === 'idle' ? (
-              <div className="space-y-8" ref={uploadSectionRef}>
-                <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr] xl:items-center">
-                  <div className="space-y-6">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
-                      <Sparkles className="h-4 w-4" />
-                      Production-style multimodal workflow
+              <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500" ref={uploadSectionRef}>
+                <section className="grid gap-12 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+                  <div className="space-y-8">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50/50 px-4 py-2 text-xs font-bold text-blue-600">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Local Processing
                     </div>
-                    <div className="space-y-4">
-                      <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-                        Upload a document, image, audio clip, or plain text and get a polished AI analysis.
+                    <div className="space-y-6">
+                      <h1 className="max-w-3xl text-5xl font-extrabold tracking-tight text-slate-950 sm:text-6xl leading-[1.1]">
+                        Understand your documents. Fast.
                       </h1>
-                      <p className="max-w-2xl text-lg leading-8 text-slate-600">
-                        The local pipeline extracts content, cleans noisy text, ranks the strongest information, and returns a presentation-ready summary with actions and raw traceability.
+                      <p className="max-w-2xl text-lg font-medium leading-relaxed text-slate-500">
+                        Upload PDFs, images, or audio. Extract key information, summaries, and useful details — all processed locally.
                       </p>
                     </div>
                     <ModeTabs modes={MODES} activeMode={activeMode} onChange={setActiveMode} />
                   </div>
 
                   <SurfaceCard
-                    title={`${heroMode?.label || 'PDF'} mode`}
-                    subtitle="Each input type goes through the same cleaned analysis pipeline, while keeping the UI tailored to the format you are working with."
+                    title={`${heroMode?.label || 'PDF'} Analysis`}
+                    subtitle="Handles both clean and scanned documents reliably."
                     icon={heroMode?.icon}
                   >
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
-                        <p className="text-sm font-semibold text-slate-900">What happens</p>
-                        <p className="mt-2 text-sm leading-6 text-slate-500">Upload, extract, clean, reason, and present the output with confidence-aware fallbacks.</p>
+                    <div className="space-y-4">
+                      <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                        <p className="text-sm font-bold text-slate-900">Reliable Extraction</p>
+                        <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">Extracts text even from low-quality scans.</p>
                       </div>
-                      <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
-                        <p className="text-sm font-semibold text-slate-900">Why it feels real</p>
-                        <p className="mt-2 text-sm leading-6 text-slate-500">History, raw extracted text, export, staged loading, and modular UI components mirror a production desktop tool.</p>
+                      <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                        <p className="text-sm font-bold text-slate-900">Privacy First</p>
+                        <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">No data leaves your machine.</p>
                       </div>
                     </div>
                   </SurfaceCard>
@@ -281,7 +258,7 @@ function App() {
             ) : null}
 
             {status === 'loading' ? (
-              <div className="mx-auto max-w-3xl">
+              <div className="mx-auto max-w-2xl animate-in zoom-in-95 duration-300">
                 <SurfaceCard>
                   <Loader
                     steps={PROCESS_STEPS}
@@ -294,18 +271,18 @@ function App() {
             ) : null}
 
             {status === 'error' ? (
-              <div className="mx-auto max-w-2xl">
-                <SurfaceCard title="Analysis Failed" subtitle="The request could not be completed with the current backend response.">
-                  <div className="space-y-5">
-                    <p className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-4 text-sm leading-6 text-rose-800">
+              <div className="mx-auto max-w-2xl animate-in shake duration-500">
+                <SurfaceCard title="Analysis Failed" subtitle="The request could not be completed at this time.">
+                  <div className="space-y-6">
+                    <p className="rounded-2xl border border-rose-100 bg-rose-50/50 px-5 py-5 text-sm font-medium leading-relaxed text-rose-800">
                       {errorMessage}
                     </p>
                     <button
                       type="button"
                       onClick={handleReset}
-                      className="inline-flex rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                      className="inline-flex rounded-2xl bg-slate-900 px-8 py-4 text-sm font-bold text-white transition hover:bg-slate-800 shadow-lg shadow-slate-950/20"
                     >
-                      Try another analysis
+                      Return to Workspace
                     </button>
                   </div>
                 </SurfaceCard>

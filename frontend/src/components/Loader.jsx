@@ -12,8 +12,8 @@ export default function Loader({ steps = [], activeStep = 0, elapsedMs = 0, mode
           <div className="absolute inset-2 animate-spin rounded-full border-2 border-white/30 border-t-transparent" />
           <Sparkles className="h-9 w-9 text-white animate-pulse" />
         </div>
-        <h3 className="mt-6 text-2xl font-semibold tracking-tight text-slate-900">Preparing your {modeLabel}</h3>
-        <p className="mt-2 text-sm text-slate-500">The pipeline is running locally and updating step-by-step for a more realistic analysis flow.</p>
+        <h3 className="mt-6 text-2xl font-semibold tracking-tight text-slate-900">Processing {modeLabel}</h3>
+        <p className="mt-2 text-sm text-slate-500">Analyzing your file locally.</p>
         <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">
           <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
           {elapsedSeconds}s elapsed

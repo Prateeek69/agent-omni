@@ -44,6 +44,11 @@ class ReasoningAgent:
                 "answer": "",
                 "summary_quality": "low",
                 "confidence": "low",
+                "insights": {
+                    "tone": "neutral",
+                    "usefulness_score": 0,
+                    "suggested_next_step": "Provide more content",
+                }
             }
 
         document_type = self._detect_document_type(cleaned_text)
@@ -56,6 +61,11 @@ class ReasoningAgent:
         suggested_actions = self._suggest_actions(document_type)
         confidence = self._estimate_confidence(summary, ranked_sentences, document_type)
         summary_quality = "high" if confidence == "high" else "medium" if summary else "low"
+        
+        # New insights
+        tone = self._detect_tone(cleaned_text)
+        usefulness_score = self._calculate_usefulness(summary, key_points, confidence)
+        suggested_next_step = suggested_actions[0] if suggested_actions else "Review manually"
 
         return {
             "document_type": document_type,
@@ -66,6 +76,11 @@ class ReasoningAgent:
             "answer": summary,
             "summary_quality": summary_quality,
             "confidence": confidence,
+            "insights": {
+                "tone": tone,
+                "usefulness_score": usefulness_score,
+                "suggested_next_step": suggested_next_step,
+            }
         }
 
     def _detect_document_type(self, text: str) -> str:
@@ -387,23 +402,69 @@ class ReasoningAgent:
     def _suggest_actions(self, document_type: str) -> list[str]:
         if document_type == "resume":
             return [
-                "Check ATS score.",
-                "Improve wording and impact statements.",
-                "Generate a tailored cover letter.",
+                "ATS Compatibility Review",
+                "Improve Resume Impact",
+                "Create Tailored Cover Letter",
+                "Refine Wording",
+                "Generate Resume Bullets"
             ]
 
         if document_type == "academic document":
             return [
-                "Summarize marks or scores clearly.",
-                "Highlight academic achievements.",
-                "Convert strong results into resume bullets.",
+                "Extract CGPA/Percentage",
+                "Academic Summary",
+                "Resume Bullet Points",
+                "Highlight Achievements",
+                "Organize Score Snapshot"
+            ]
+
+        if document_type == "notice":
+            return [
+                "Find Deadlines",
+                "Identify Key Dates",
+                "Check Eligibility",
+                "Generate Action Items"
+            ]
+
+        if document_type == "bill":
+            return [
+                "Total Amount Extraction",
+                "Vendor Details",
+                "Export CSV",
+                "Payment Timeline"
             ]
 
         return [
-            "Generate a concise summary.",
-            "Extract deadlines and important dates.",
-            "List action items to follow up.",
+            "Summarize in 3 bullets",
+            "Extract all dates",
+            "Rewrite professionally",
+            "List action items"
         ]
+
+    def _detect_tone(self, text: str) -> str:
+        lower = text.lower()
+        if any(word in lower for word in ["urgent", "immediately", "deadline", "must", "warning"]):
+            return "urgent / formal"
+        if any(word in lower for word in ["please", "kindly", "thanks", "regards", "welcome"]):
+            return "polite / professional"
+        if any(word in lower for word in ["we", "our", "team", "together", "community"]):
+            return "collaborative"
+        if any(word in lower for word in ["innovation", "dynamic", "achieved", "lead", "optimized"]):
+            return "achievement-oriented"
+        return "neutral / informative"
+
+    def _calculate_usefulness(self, summary: str, key_points: list[str], confidence: str) -> int:
+        score = 0
+        if confidence == "high": score += 4
+        elif confidence == "medium": score += 2
+        
+        if len(summary.split()) > 30: score += 3
+        elif len(summary.split()) > 10: score += 1
+        
+        if len(key_points) >= 3: score += 3
+        elif len(key_points) > 0: score += 1
+        
+        return min(score, 10)
 
     def _estimate_confidence(self, summary: str, ranked_sentences: list[dict], document_type: str) -> str:
         if not summary:

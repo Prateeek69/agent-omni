@@ -64,40 +64,10 @@ function formatKeyPoint(point, index) {
   };
 }
 
-function describeAction(action) {
-  const lower = action.toLowerCase();
-
-  if (lower.includes('ats')) {
-    return 'Estimate how well the document will perform in automated screening systems.';
-  }
-  if (lower.includes('cover letter')) {
-    return 'Turn this analysis into a tailored companion document for applications.';
-  }
-  if (lower.includes('wording')) {
-    return 'Refine tone, clarity, and impact so the language sounds stronger and more polished.';
-  }
-  if (lower.includes('resume bullets')) {
-    return 'Convert the strongest evidence into concise achievement bullets for future reuse.';
-  }
-  if (lower.includes('highlight academic achievements')) {
-    return 'Surface the best scores, ranks, and outcomes so they are easier to present elsewhere.';
-  }
-  if (lower.includes('marks or scores')) {
-    return 'Organize scores into a quick, interview-friendly snapshot.';
-  }
-  if (lower.includes('deadlines')) {
-    return 'Pull out dates, timelines, and scheduling pressure points from the document.';
-  }
-  if (lower.includes('action items')) {
-    return 'Convert the content into a short follow-up checklist.';
-  }
-
-  return 'Use this next step to deepen or repurpose the current analysis.';
-}
-
 export default function ResultView({ data, onReset }) {
   const [copied, setCopied] = useState(false);
   const [showRawText, setShowRawText] = useState(false);
+  const [checkedActions, setCheckedActions] = useState({});
 
   const {
     summary = '',
@@ -142,6 +112,13 @@ export default function ResultView({ data, onReset }) {
     setTimeout(() => setCopied(false), 1800);
   };
 
+  const toggleAction = (index) => {
+    setCheckedActions(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
+  };
+
   if (!hasUsefulContent) {
     return (
       <SurfaceCard title="No Content Extracted" subtitle="We could not recover enough reliable text from the current input.">
@@ -149,13 +126,13 @@ export default function ResultView({ data, onReset }) {
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400">
             <AlertCircle className="h-8 w-8" />
           </div>
-          <p className="text-sm text-slate-500">Try a clearer file, a higher-resolution image, or add more context before rerunning the analysis.</p>
+          <p className="text-sm text-slate-500">Try a clearer file or add more context before rerunning the analysis.</p>
           <button
             type="button"
             onClick={onReset}
             className="inline-flex rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
-            Analyze Another File
+            Analyze another file
           </button>
         </div>
       </SurfaceCard>
@@ -163,10 +140,10 @@ export default function ResultView({ data, onReset }) {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <SurfaceCard
-        title="Analysis Summary"
-        subtitle="A cleaned, human-readable view of the most important information extracted from your input."
+        title="Summary"
+        subtitle="Key information found in your file."
         icon={Sparkles}
         action={
           <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] ${confidenceClasses(confidence)}`}>
@@ -215,7 +192,7 @@ export default function ResultView({ data, onReset }) {
               className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-[0_12px_24px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:text-slate-900"
             >
               <Copy className="h-4 w-4" />
-              {copied ? 'Copied' : 'Copy Summary'}
+              {copied ? 'Copied' : 'Copy'}
             </button>
           </div>
 
@@ -227,8 +204,8 @@ export default function ResultView({ data, onReset }) {
                 className="flex w-full items-center justify-between px-5 py-4 text-left"
               >
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">Raw Extracted Text</p>
-                  <p className="mt-1 text-xs text-slate-500">Inspect the cleaned extraction that powered the summary.</p>
+                  <p className="text-sm font-semibold text-slate-900">Extracted Text</p>
+                  <p className="mt-1 text-xs text-slate-500">The raw text extracted from your file.</p>
                 </div>
                 <ChevronDown className={`h-5 w-5 text-slate-500 transition-transform ${showRawText ? 'rotate-180' : ''}`} />
               </button>
@@ -247,7 +224,7 @@ export default function ResultView({ data, onReset }) {
       <div className="grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
         <SurfaceCard
           title="Key Points"
-          subtitle="Short, scan-friendly takeaways extracted from the document."
+          subtitle="Specific takeaways from the document."
           icon={CheckCircle2}
         >
           <div className="space-y-4">
@@ -276,27 +253,40 @@ export default function ResultView({ data, onReset }) {
         </SurfaceCard>
 
         <SurfaceCard
-          title="Suggested Actions"
-          subtitle="Recommended next steps based on the detected document type."
+          title="Tasks"
+          subtitle="Follow-up actions based on the document."
           icon={WandSparkles}
         >
-          <div className="space-y-4">
-            {actions.map((action) => (
+          <div className="space-y-3">
+            {actions.map((action, index) => (
               <div
-                key={action}
-                className="group rounded-[24px] border border-slate-200 bg-white p-4 transition-all hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_16px_35px_rgba(59,130,246,0.10)]"
+                key={index}
+                onClick={() => toggleAction(index)}
+                className={`flex items-center gap-4 p-4 rounded-[24px] border transition-all cursor-pointer ${
+                  checkedActions[index] 
+                    ? 'border-emerald-200 bg-emerald-50/50' 
+                    : 'border-slate-100 bg-white hover:border-slate-200'
+                }`}
               >
-                <div className="flex items-start gap-4">
-                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 group-hover:bg-blue-100">
-                    <Target className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">{action}</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-500">{describeAction(action)}</p>
-                  </div>
+                <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border-2 transition-all ${
+                  checkedActions[index]
+                    ? 'border-emerald-500 bg-emerald-500 text-white'
+                    : 'border-slate-300 bg-white'
+                }`}>
+                  {checkedActions[index] && (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
                 </div>
+                <span className={`text-sm font-medium transition-all ${checkedActions[index] ? 'text-emerald-800 line-through opacity-60' : 'text-slate-700'}`}>
+                  {action}
+                </span>
               </div>
             ))}
+            {actions.length === 0 && (
+              <p className="text-sm text-slate-500">No actions suggested.</p>
+            )}
           </div>
         </SurfaceCard>
       </div>
@@ -307,7 +297,7 @@ export default function ResultView({ data, onReset }) {
           onClick={onReset}
           className="inline-flex rounded-2xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-[0_14px_26px_rgba(15,23,42,0.2)] transition hover:-translate-y-0.5 hover:bg-slate-800"
         >
-          Analyze Another File
+          Analyze another file
         </button>
       </div>
     </div>
