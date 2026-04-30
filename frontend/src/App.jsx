@@ -38,7 +38,6 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const [activeMode, setActiveMode] = useState('pdf');
   const [historyItems, setHistoryItems] = useState(() => readStoredHistory());
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activePanel, setActivePanel] = useState('history');
   const [loadingStep, setLoadingStep] = useState(0);
@@ -172,12 +171,10 @@ function App() {
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(191,219,254,0.45),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(224,231,255,0.45),_transparent_35%),linear-gradient(180deg,_#f8fbff_0%,_#f3f6fb_100%)] text-slate-900 selection:bg-blue-100 selection:text-slate-900">
       <div className="flex min-h-screen">
         <Sidebar
-          collapsed={sidebarCollapsed}
           mobileOpen={mobileSidebarOpen}
           activePanel={activePanel}
           historyItems={historyItems}
           currentJobId={currentJobId}
-          onToggleCollapse={() => setSidebarCollapsed((previous) => !previous)}
           onCloseMobile={() => setMobileSidebarOpen(false)}
           onSelectPanel={setActivePanel}
           onNewAnalysis={handleReset}
@@ -198,8 +195,8 @@ function App() {
                 </button>
 
                 <button type="button" onClick={handleReset} className="group inline-flex items-center gap-3 text-left">
-                  <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-sky-500 text-white shadow-[0_10px_20px_rgba(37,99,235,0.25)] transition-transform group-hover:scale-105">
-                    <span className="relative text-xl font-black tracking-tight">O</span>
+                  <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-sm overflow-hidden border border-slate-100 transition-transform group-hover:scale-105">
+                    <img src="/logo.png" alt="Logo" className="h-full w-full object-contain p-1.5" />
                   </div>
                   <div className="hidden sm:block">
                     <p className="text-xl font-bold tracking-tight text-slate-900">Agent-Omni</p>
@@ -218,39 +215,18 @@ function App() {
           <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
             {status === 'idle' ? (
               <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500" ref={uploadSectionRef}>
-                <section className="grid gap-12 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+                <section className="w-full">
                   <div className="space-y-8">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50/50 px-4 py-2 text-xs font-bold text-blue-600">
-                      <Sparkles className="h-3.5 w-3.5" />
-                      Local Processing
-                    </div>
                     <div className="space-y-6">
-                      <h1 className="max-w-3xl text-5xl font-extrabold tracking-tight text-slate-950 sm:text-6xl leading-[1.1]">
-                        Understand your documents. Fast.
+                      <h1 className="text-5xl font-extrabold tracking-tight text-slate-950 sm:text-6xl lg:text-7xl leading-[1.1]">
+                        Understand your documents
                       </h1>
                       <p className="max-w-2xl text-lg font-medium leading-relaxed text-slate-500">
-                        Upload PDFs, images, or audio. Extract key information, summaries, and useful details — all processed locally.
+                        Upload PDFs, images, or audio. Extract key information, summaries, and useful details everything processed locally.
                       </p>
                     </div>
                     <ModeTabs modes={MODES} activeMode={activeMode} onChange={setActiveMode} />
                   </div>
-
-                  <SurfaceCard
-                    title={`${heroMode?.label || 'PDF'} Analysis`}
-                    subtitle="Handles both clean and scanned documents reliably."
-                    icon={heroMode?.icon}
-                  >
-                    <div className="space-y-4">
-                      <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                        <p className="text-sm font-bold text-slate-900">Reliable Extraction</p>
-                        <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">Extracts text even from low-quality scans.</p>
-                      </div>
-                      <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                        <p className="text-sm font-bold text-slate-900">Privacy First</p>
-                        <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">No data leaves your machine.</p>
-                      </div>
-                    </div>
-                  </SurfaceCard>
                 </section>
 
                 <UploadForm key={activeMode} mode={activeMode} onSubmit={handleProcess} isUploading={false} />

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  Activity,
   AlertCircle,
   CheckCircle2,
   ChevronDown,
@@ -81,6 +82,8 @@ export default function ResultView({ data, onReset }) {
     processing_time_seconds: processingTimeSeconds = 0,
     word_count: backendWordCount = 0,
     document_type: documentType = 'general pdf',
+    router = { intent: '', agents_used: [] },
+    agent_timeline: agentTimeline = [],
   } = data?.final_output || {};
 
   const InputIcon = inputIcons[primaryInputType] || FileText;
@@ -221,7 +224,48 @@ export default function ResultView({ data, onReset }) {
         </div>
       </SurfaceCard>
 
-      <div className="grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
+      {/* Agent Activity Section */}
+      <SurfaceCard
+        title="Agent Activity"
+        subtitle="How the system processed your file"
+        icon={Activity}
+      >
+        <div className="space-y-6">
+          <div className="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-semibold text-slate-700">Intent:</span>
+              <span className="text-slate-600">{router?.intent || 'General Document Understanding'}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-semibold text-slate-700">Agents used:</span>
+              <span className="text-slate-600">{(router?.agents_used || []).join(', ')}</span>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {agentTimeline.length > 0 ? agentTimeline.map((item, index) => (
+              <div key={index} className="flex items-start gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                  <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold text-slate-900">{item.agent}</p>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Completed</span>
+                  </div>
+                  <p className="mt-1 truncate text-xs text-slate-500 italic">
+                    {item.output_preview}
+                  </p>
+                </div>
+              </div>
+            )) : (
+              <p className="text-xs text-slate-500">Processing activity details unavailable.</p>
+            )}
+          </div>
+        </div>
+      </SurfaceCard>
+
+      <div className="flex flex-col gap-8">
         <SurfaceCard
           title="Key Points"
           subtitle="Specific takeaways from the document."
@@ -248,44 +292,6 @@ export default function ResultView({ data, onReset }) {
               );
             }) : (
               <p className="text-sm text-slate-500">Key points were not available for this analysis.</p>
-            )}
-          </div>
-        </SurfaceCard>
-
-        <SurfaceCard
-          title="Tasks"
-          subtitle="Follow-up actions based on the document."
-          icon={WandSparkles}
-        >
-          <div className="space-y-3">
-            {actions.map((action, index) => (
-              <div
-                key={index}
-                onClick={() => toggleAction(index)}
-                className={`flex items-center gap-4 p-4 rounded-[24px] border transition-all cursor-pointer ${
-                  checkedActions[index] 
-                    ? 'border-emerald-200 bg-emerald-50/50' 
-                    : 'border-slate-100 bg-white hover:border-slate-200'
-                }`}
-              >
-                <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border-2 transition-all ${
-                  checkedActions[index]
-                    ? 'border-emerald-500 bg-emerald-500 text-white'
-                    : 'border-slate-300 bg-white'
-                }`}>
-                  {checkedActions[index] && (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  )}
-                </div>
-                <span className={`text-sm font-medium transition-all ${checkedActions[index] ? 'text-emerald-800 line-through opacity-60' : 'text-slate-700'}`}>
-                  {action}
-                </span>
-              </div>
-            ))}
-            {actions.length === 0 && (
-              <p className="text-sm text-slate-500">No actions suggested.</p>
             )}
           </div>
         </SurfaceCard>
